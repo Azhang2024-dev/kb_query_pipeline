@@ -1,0 +1,1 @@
+@file:///workspace/gitlab_migrate/kb_query_pipeline/SKILL.md
