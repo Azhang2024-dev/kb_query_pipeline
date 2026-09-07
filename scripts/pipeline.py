@@ -146,6 +146,6 @@ def detect_schema(df, model, base_url, api_key):
     prompt = SCHEMA_PROMPT.format(columns=json.dumps(profiles, ensure_ascii=False, indent=2))
     manifest = _call_llm_json(prompt, model, base_url, api_key)
     for role in ("query", "answer", "search_result", "score"):
-        if role not in manifest or not manifesto[role]:
+        if role not in manifest or not manifest[role]:
             raise ValueError(f"认列结果缺少必需角色 {role}：{manifest}")
     return manifest
