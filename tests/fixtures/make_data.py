@@ -54,7 +54,7 @@ def make_golden_df():
     records = []
     for i, q in enumerate(golden_specified() + golden_not_specified(), 1):
         records.append((f"rid_golden_{i:02d}", q, 0.7, "Ответ: да.", "检索片段内容"))
-        records.append((f"rid_golden_{i:02d}", q, 0.5, "Ответ: да.", "второй召回片段"))
+        records.append((f"rid_golden_{i:02d}", q, 0.5, "Ответ: да.", "第二个召回片段"))
     return make_df(records)
 
 
