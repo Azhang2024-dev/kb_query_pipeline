@@ -92,7 +92,7 @@ EXCEPTIONS — NOT specified even with a named entity (these ask about GENERAL R
 - Legal terms without a specific instrument: "персональных данных", "ТО" abbreviation — NOT specified
 - Historical/cultural facts asked generally: "причины пакта Молотова-Риббентропа" — NOT specified
 
-TIE-BREAKER RULE: ask yourself — could this question be answered without reading ANY specific document, from general knowledge alone? If YES → not specified. If it REQUIRES looking at ONE specific document/context to know WHICH object is meant → specified. When in doubt between 是 and 否, prefer 是 (specified) — the pipeline removes specified queries by design, and an over-removal can be restored, while an under-removal pollutes the final set.
+TIE-BREAKER RULE: ask yourself — could this question be answered without reading ANY specific document, from general knowledge alone? If YES → not specified. If it REQUIRES looking at ONE specific document/context to know WHICH object is meant → specified. When in doubt between 是 and 否, prefer 存疑 (uncertain) — do NOT force 是. Uncertain rows are fail-closed into the gray list for human verdict; forcing 是 silently enriches the removed pool and hides difficulty shift from eval readers.
 
 QUALITY ISSUES to check (may be multiple, or none):
 - "empty_answer": the answer text is empty/blank/missing
@@ -125,7 +125,7 @@ Respond with ONLY a JSON object:
   "confidence": 0.0-1.0
 }}
 
-Use "存疑" (uncertain) only when you genuinely cannot decide; prefer "是" or "否"."""
+When unsure between 是 and 否, you MUST use "存疑" (uncertain). Do not force 是. Prefer a clear 是/否 only when confident."""
 
 
 CLASSIFY_PROMPT = _single_prompt_body()
@@ -158,7 +158,7 @@ Respond with ONLY a JSON object:
 
 Rules:
 - Return EXACTLY one result per input question, with matching "index" values.
-- Use "存疑" (uncertain) only when you genuinely cannot decide; prefer "是" or "否".
+- When unsure between 是 and 否, you MUST use "存疑" (uncertain). Do not force 是. Prefer a clear 是/否 only when confident.
 """
 )
 
