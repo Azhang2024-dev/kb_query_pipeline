@@ -37,6 +37,34 @@ class TestTextTools(unittest.TestCase):
         self.assertEqual(jaccard({"a", "b"}, {"a", "b"}), 1.0)
         self.assertEqual(jaccard({"a", "b"}, {"a", "c"}), 1 / 3)
 
+    def test_tokens_zh_near_dup_high_sim(self):
+        a = tokens("中国银行是什么")
+        b = tokens("中国银行是什么机构")
+        self.assertGreater(len(a), 0)
+        self.assertIn("中", a)
+        self.assertIn("国", a)
+        self.assertGreaterEqual(jaccard(a, b), 0.7)
+
+    def test_tokens_cafe_hotel_fr(self):
+        self.assertIn("cafe", tokens("café"))
+        self.assertIn("hotel", tokens("hôtel"))
+        # accent-folded forms should match
+        self.assertEqual(jaccard(tokens("café hotel"), tokens("cafe hotel")), 1.0)
+
+    def test_tokens_empty_and_ascii(self):
+        self.assertEqual(tokens(""), set())
+        self.assertEqual(tokens("   "), set())
+        self.assertEqual(tokens("Hello World 123"), {"hello", "world", "123"})
+
+    def test_tokens_nonempty_no_script_uses_raw_sentinel(self):
+        # punctuation-only: no Latin/Cyrillic/Arabic/Han → sentinel, identical collide
+        a = tokens("!!!")
+        b = tokens("!!!")
+        c = tokens("???")
+        self.assertTrue(any(t.startswith(chr(0) + "raw:") for t in a))
+        self.assertEqual(jaccard(a, b), 1.0)
+        self.assertEqual(jaccard(a, c), 0.0)
+
 
 class TestDedup(unittest.TestCase):
     def test_finds_duplicate_pair(self):
