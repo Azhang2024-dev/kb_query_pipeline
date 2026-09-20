@@ -39,7 +39,35 @@ def norm(s):
 
 
 def tokens(s):
-    return set(re.findall(r"[a-zа-яё0-9\u0600-\u06ff]+", norm(s)))
+    """Tokenize for Jaccard similarity across scripts.
+
+    Pipeline: existing ``norm`` (NFKC + lower + whitespace) then NFKD with
+    combining marks stripped so Latin accents fold (café→cafe) while Han
+    ideographs stay intact.
+
+    Token set includes:
+      - Latin (a-z after fold), Cyrillic, Arabic letters/digits, ASCII digits
+      - Han: each CJK Unified Ideograph (\\u4e00-\\u9fff, Ext-A \\u3400-\\u4dbf)
+        as its own token
+
+    If ``norm(s)`` is non-empty but no script tokens match, return a singleton
+    ``{f"\\0raw:{n}"}`` so identical raw strings still Jaccard=1 and distinct
+    strings do not falsely match via empty∪empty. Empty input → empty set.
+    """
+    n = norm(s)
+    if not n:
+        return set()
+    # Accent-fold Latin via NFKD; extract Han from NFKC form (ideographs stable).
+    folded = "".join(
+        c for c in unicodedata.normalize("NFKD", n)
+        if unicodedata.category(c) != "Mn"
+    )
+    wordish = re.findall(r"[a-zа-яё0-9\u0600-\u06ff]+", folded)
+    han = re.findall(r"[\u4e00-\u9fff\u3400-\u4dbf]", n)
+    out = set(wordish) | set(han)
+    if not out:
+        return {f"\0raw:{n}"}
+    return out
 
 
 def jaccard(a, b):
