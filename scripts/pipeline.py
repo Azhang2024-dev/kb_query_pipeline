@@ -356,6 +356,57 @@ def apply_filter(df, manifest, verdicts, gray_verdicts=None):
     return cand, removed
 
 
+def summarize_filter_stats(removed: dict, n_input: int) -> dict:
+    """Aggregate removal reasons into rates for eval readers (P2.6).
+
+    Fail-closed removals stay fail-closed; this only makes the funnel visible.
+    Also records ``difficulty_shift`` noting that prefer-存疑 (when unsure)
+    enriches the gray/uncertain pool rather than silently forcing 是.
+    """
+    from collections import Counter
+    reason_counts: Counter = Counter()
+    for reasons in removed.values():
+        for r in reasons:
+            # normalize prefixes
+            if r.startswith("判定失败"):
+                key = "classify_failure"
+            elif r.startswith("灰色人工裁决"):
+                key = "gray_human_specified"
+            elif r == "指定query":
+                key = "specified_query"
+            elif r == "灰色待裁决":
+                key = "gray_pending"
+            elif r.startswith("质量:"):
+                key = f"quality:{r.split(':', 1)[1]}"
+            elif r == "chunk全空":
+                key = "chunk_empty"
+            else:
+                key = r
+            reason_counts[key] += 1
+    n_removed = len(removed)
+    n_kept = max(0, n_input - n_removed)
+    rates = {k: round(v / n_input, 4) if n_input else 0.0 for k, v in reason_counts.items()}
+    return {
+        "n_input": n_input,
+        "n_removed": n_removed,
+        "n_kept": n_kept,
+        "removal_rate": round(n_removed / n_input, 4) if n_input else 0.0,
+        "reason_counts": dict(reason_counts),
+        "reason_rates": rates,
+        "difficulty_shift": {
+            "tie_break_policy": "prefer_uncertain",
+            "note": (
+                "When the classifier is unsure between 是/否, it must emit 存疑 "
+                "(uncertain) rather than forcing 是. Uncertain rows stay fail-closed "
+                "(removed as 灰色待裁决 until human verdict). This shifts difficulty "
+                "visibility into the gray pool instead of silently enriching the "
+                "removed-as-specified set."
+            ),
+        },
+    }
+
+
+
 # ---------------------------------------------------------------- 阶段 4 抽样
 
 def stratified_sample(index_ids, rows_by_id, strata, seed, n):
@@ -501,7 +552,16 @@ def main():
         cand.to_excel(cand_path, index=False, sheet_name="Results")
         removed_df = pd.DataFrame([{"request_id": rid, "原因": ";".join(rs)} for rid, rs in removed.items()])
         removed_df.to_csv(os.path.join(out_dir, f"{base}.removed_list.csv"), index=False, encoding="utf-8-sig")
+        # P2.6: always emit filter_stats.json with removal rates + difficulty_shift note
+        key_col = manifest["request_id"] if manifest.get("request_id") else manifest["query"]
+        n_input = int(df[key_col].astype(str).nunique())
+        filter_stats = summarize_filter_stats(removed, n_input)
+        stats_path = os.path.join(out_dir, f"{base}.filter_stats.json")
+        with open(stats_path, "w", encoding="utf-8") as f:
+            json.dump(filter_stats, f, ensure_ascii=False, indent=2)
         print(f"  候选 {len(cand)} 行 / {cand[manifest['request_id']].nunique() if manifest.get('request_id') else '?'} 唯一  剔除 {len(removed)} 条 → {cand_path}")
+        print(f"  filter_stats → {stats_path}  removal_rate={filter_stats['removal_rate']:.1%}  reasons={filter_stats['reason_counts']}")
+        print(f"  difficulty_shift: {filter_stats['difficulty_shift']['tie_break_policy']} — {filter_stats['difficulty_shift']['note'][:80]}…")
     else:
         cand_path = os.path.join(out_dir, f"{base}_candidates.xlsx")
         if not os.path.exists(cand_path):
